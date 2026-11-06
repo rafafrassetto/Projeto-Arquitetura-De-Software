@@ -1,0 +1,38 @@
+# Arquivos e diretórios a serem ignorados pelo Git
+
+# Arquivos de compilação
+*.o
+*.out
+*.exe
+
+# Arquivos temporários
+*~
+
+# Arquivos de log e cache
+*.log
+*.cache
+
+# Arquivos gerados por IDEs
+.idea/
+.vscode/
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Dependências e diretórios de construção
+node_modules/
+build/
+dist/
+obj/
+bin/
+migrations/
+
+# Bancos de dados SQLite locais
+*.db
+*.db-shm
+*.db-wal
+
+# Arquivos de credenciais
+.env
