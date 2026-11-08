@@ -1,0 +1,57 @@
+services:
+  vagas-service:
+    build:
+      context: ./vagas-service
+      dockerfile: Dockerfile
+    container_name: vagas-service
+    ports:
+      - "5001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ServicesUrls__VeiculosService=http://veiculos-service:8080
+    volumes:
+      - vagas-data:/data
+
+  veiculos-service:
+    build:
+      context: ./veiculos-service
+      dockerfile: Dockerfile
+    container_name: veiculos-service
+    ports:
+      - "5002:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - veiculos-data:/data
+
+  operadores-service:
+    build:
+      context: ./operadores-service
+      dockerfile: Dockerfile
+    container_name: operadores-service
+    ports:
+      - "5003:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - operadores-data:/data
+
+  cobranca-service:
+    build:
+      context: ./cobranca-service
+      dockerfile: Dockerfile
+    container_name: cobranca-service
+    ports:
+      - "5004:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ServicesUrls__VeiculosService=http://veiculos-service:8080
+      - ServicesUrls__VagasService=http://vagas-service:8080
+    volumes:
+      - cobranca-data:/data
+
+volumes:
+  vagas-data:
+  veiculos-data:
+  operadores-data:
+  cobranca-data:
