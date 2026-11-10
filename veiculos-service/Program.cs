@@ -1,15 +1,37 @@
-using Exemplo;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
-using Template.Infra;
+using Scalar.AspNetCore;
+using VeiculosService;
+using VeiculosService.Infra;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi();
+builder.Services.AddHttpClient();
+
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? [];
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
+        else
+        {
+            policy.AllowAnyOrigin()
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
+    });
+});
 
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
@@ -21,21 +43,25 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<DataContext>();
-    db.Database.EnsureCreated();
+    var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
+    dataContext.Database.EnsureCreated();
 }
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                       ForwardedHeaders.XForwardedProto
+};
 
-app.UseHttpsRedirection();
+forwardedHeadersOptions.KnownIPNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
+app.MapOpenApi();
+app.MapScalarApiReference();
+
+app.UseCors();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();
