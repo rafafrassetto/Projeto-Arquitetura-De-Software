@@ -1,14 +1,14 @@
-using Exemplo;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Template.Infra
+namespace OperadoresService.Infra
 {
     public static class GeradorDeServicos
     {
-        public static ServiceProvider ServiceProvider;
+        public static ServiceProvider ServiceProvider { get; set; } = null!;
 
         public static DataContext CarregarContexto()
         {
-            return ServiceProvider.GetService<DataContext>();
+            return ServiceProvider.GetRequiredService<DataContext>();
         }
     }
 }
