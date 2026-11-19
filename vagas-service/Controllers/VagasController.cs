@@ -99,6 +99,10 @@ namespace VagasService.Controllers
                 var vaga = _servVagas.Alocar(id, dto.VeiculoId);
                 return Ok(vaga);
             }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { erro = ex.Message });
+            }
             catch (KeyNotFoundException ex)
             {
                 return NotFound(new { erro = ex.Message });

@@ -125,6 +125,10 @@ namespace VagasService.Servicos
             if (!string.IsNullOrWhiteSpace(dto.TipoVaga)) vaga.TipoVaga = dto.TipoVaga.Trim();
             if (!string.IsNullOrWhiteSpace(dto.Status)) vaga.Status = dto.Status.Trim();
 
+            // Uma vaga liberada ou em manutenção não pode continuar vinculada a um veículo
+            if (!vaga.Status.Equals("Ocupada", StringComparison.OrdinalIgnoreCase))
+                vaga.VeiculoId = null;
+
             vaga.AtualizadoEm = DateTime.UtcNow;
             _dataContext.SaveChanges();
 
@@ -147,6 +151,12 @@ namespace VagasService.Servicos
 
             if (vaga.Status.Equals("Ocupada", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException($"A vaga {vaga.Codigo} já está ocupada pelo veículo ID {vaga.VeiculoId}.");
+
+            if (vaga.Status.Equals("Manutencao", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"A vaga {vaga.Codigo} está em manutenção e não pode receber veículos.");
+
+            if (veiculoId <= 0)
+                throw new ArgumentException("O ID do veículo deve ser maior que zero.");
 
             vaga.Status = "Ocupada";
             vaga.VeiculoId = veiculoId;
