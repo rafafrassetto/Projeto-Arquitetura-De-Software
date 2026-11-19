@@ -64,6 +64,9 @@ app.UsarObservabilidade("vagas-service");
 app.MapOpenApi();
 app.MapScalarApiReference();
 
+// A raiz do serviço abre a documentação interativa da API
+app.MapGet("/", () => Results.Redirect("/scalar/v1")).ExcludeFromDescription();
+
 app.UseCors();
 app.UseAuthorization();
 app.MapControllers();
