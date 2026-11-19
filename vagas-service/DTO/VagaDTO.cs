@@ -39,6 +39,7 @@ namespace VagasService.DTO
         public string Placa { get; set; } = string.Empty;
         public string Modelo { get; set; } = string.Empty;
         public string Cor { get; set; } = string.Empty;
+        public string TipoVeiculo { get; set; } = string.Empty;
         public string? NomeCondutor { get; set; }
         public string? TelefoneCondutor { get; set; }
         public DateTime DataHoraEntrada { get; set; }
