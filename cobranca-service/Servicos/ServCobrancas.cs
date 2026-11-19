@@ -139,43 +139,55 @@ namespace CobrancaService.Servicos
 
         public async Task<VeiculoConsultaDTO?> ConsultarVeiculo(int veiculoId)
         {
+            var baseUrl = UrlsServicos.Obter(_configuration, "VeiculosService", "http://localhost:5002");
+
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = UrlsServicos.Timeout(_configuration);
+
+            HttpResponseMessage response;
             try
             {
-                var baseUrl = _configuration["ServicesUrls:VeiculosService"] 
-                           ?? _configuration["ServicosUrls:VeiculosService"] 
-                           ?? "http://localhost:5002";
+                response = await client.GetAsync($"{baseUrl}/api/veiculos/{veiculoId}");
+            }
+            catch (TaskCanceledException ex)
+            {
+                throw new HttpRequestException($"Tempo limite excedido ao consultar o veiculos-service ({baseUrl}).", ex);
+            }
 
+            if (response.IsSuccessStatusCode)
+                return await response.Content.ReadFromJsonAsync<VeiculoConsultaDTO>();
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                return null;
+
+            throw new HttpRequestException($"veiculos-service respondeu com status {(int)response.StatusCode} ao consultar o veículo {veiculoId}.");
+        }
+
+        // Integração de alteração de dados (Issue #9): cobranca-service -> vagas-service
+        // Dispara PATCH /api/vagas/{id}/liberar para mudar o status da vaga para "Liberada" e limpar o VeiculoId.
+        public async Task<(bool Sucesso, string Mensagem)> LiberarVaga(int vagaId)
+        {
+            var baseUrl = UrlsServicos.Obter(_configuration, "VagasService", "http://localhost:5001");
+
+            try
+            {
                 var client = _httpClientFactory.CreateClient();
-                client.Timeout = TimeSpan.FromSeconds(5);
+                client.Timeout = UrlsServicos.Timeout(_configuration);
 
-                var response = await client.GetAsync($"{baseUrl.TrimEnd('/')}/api/veiculos/{veiculoId}");
-                if (!response.IsSuccessStatusCode)
-                {
-                    response = await client.GetAsync($"{baseUrl.TrimEnd('/')}/veiculos/{veiculoId}");
-                }
+                var response = await client.PatchAsync($"{baseUrl}/api/vagas/{vagaId}/liberar", content: null);
 
                 if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadFromJsonAsync<VeiculoConsultaDTO>();
-                }
+                    return (true, $"Vaga ID {vagaId} liberada automaticamente no vagas-service.");
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                {
-                    return null;
-                }
-            }
-            catch (HttpRequestException ex)
-            {
-                Console.WriteLine($"[AVISO] Erro HTTP ao consultar veiculos-service para veículo {veiculoId}: {ex.Message}");
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AVISO] Não foi possível consultar veiculos-service para o veículo {veiculoId}: {ex.Message}");
-                throw;
-            }
+                    return (false, $"Vaga ID {vagaId} não foi encontrada no vagas-service.");
 
-            return null;
+                return (false, $"vagas-service respondeu com status {(int)response.StatusCode} ao liberar a vaga {vagaId}.");
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                return (false, $"Falha de comunicação com o vagas-service ({baseUrl}): {ex.Message}");
+            }
         }
 
         public CobrancaDTO Atualizar(int id, AtualizarCobrancaDTO dto)
@@ -228,7 +240,7 @@ namespace CobrancaService.Servicos
             return MapearParaDTO(cobranca);
         }
 
-        public CobrancaDTO ConfirmarPagamento(int id, ConfirmarPagamentoDTO? dto = null)
+        public async Task<PagamentoConfirmadoDTO> ConfirmarPagamento(int id, ConfirmarPagamentoDTO? dto = null)
         {
             var cobranca = _dataContext.Cobrancas.Find(id)
                 ?? throw new KeyNotFoundException($"Cobrança com ID {id} não encontrada.");
@@ -258,7 +270,15 @@ namespace CobrancaService.Servicos
 
             _dataContext.SaveChanges();
 
-            return MapearParaDTO(cobranca);
+            // Após gravar o pagamento, dispara a alteração no vagas-service para liberar a vaga
+            var (vagaLiberada, mensagemIntegracao) = await LiberarVaga(cobranca.VagaId);
+
+            return new PagamentoConfirmadoDTO
+            {
+                Cobranca = MapearParaDTO(cobranca),
+                VagaLiberada = vagaLiberada,
+                IntegracaoVagas = mensagemIntegracao
+            };
         }
 
         public CobrancaDTO Cancelar(int id)

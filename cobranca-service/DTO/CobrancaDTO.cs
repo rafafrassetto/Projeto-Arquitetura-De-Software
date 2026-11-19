@@ -43,6 +43,13 @@ namespace CobrancaService.DTO
         public DateTime? DataHoraSaida { get; set; }
     }
 
+    public class PagamentoConfirmadoDTO
+    {
+        public CobrancaDTO Cobranca { get; set; } = new();
+        public bool VagaLiberada { get; set; }
+        public string IntegracaoVagas { get; set; } = string.Empty;
+    }
+
     public class SimulacaoTarifaDTO
     {
         public int CobrancaId { get; set; }

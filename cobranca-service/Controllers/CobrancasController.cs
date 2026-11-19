@@ -128,14 +128,20 @@ namespace CobrancaService.Controllers
 
         [HttpPatch("{id:int}/pagar")]
         [HttpPut("{id:int}/pagar")]
-        public IActionResult ConfirmarPagamento(
+        public async Task<IActionResult> ConfirmarPagamento(
             int id,
             [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] ConfirmarPagamentoDTO? dto = null)
         {
             try
             {
-                var cobranca = _servCobrancas.ConfirmarPagamento(id, dto);
-                return Ok(new { mensagem = $"Pagamento da cobrança {cobranca.Id} confirmado com sucesso.", cobranca });
+                var resultado = await _servCobrancas.ConfirmarPagamento(id, dto);
+                return Ok(new
+                {
+                    mensagem = $"Pagamento da cobrança {resultado.Cobranca.Id} confirmado com sucesso.",
+                    cobranca = resultado.Cobranca,
+                    vagaLiberada = resultado.VagaLiberada,
+                    integracaoVagas = resultado.IntegracaoVagas
+                });
             }
             catch (ArgumentException ex)
             {
