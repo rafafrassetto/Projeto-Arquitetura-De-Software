@@ -143,16 +143,5 @@ namespace OperadoresService.Controllers
                 return StatusCode(500, new { erro = ex.Message });
             }
         }
-
-        [HttpGet("/health")]
-        public IActionResult Health()
-        {
-            return Ok(new
-            {
-                servico = "operadores-service",
-                status = "Healthy",
-                horario = DateTime.UtcNow
-            });
-        }
     }
 }

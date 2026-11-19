@@ -151,28 +151,17 @@ namespace VagasService.Controllers
         }
 
         [HttpGet("sugestao-ia")]
-        public IActionResult SugerirVagaIa([FromQuery] string? tipoVeiculo)
+        public async Task<IActionResult> SugerirVagaIa([FromQuery] string? tipoVeiculo)
         {
             try
             {
-                var sugestao = _servVagas.SugerirVagaIa(tipoVeiculo);
+                var sugestao = await _servVagas.SugerirVagaIa(tipoVeiculo);
                 return Ok(sugestao);
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { erro = ex.Message });
             }
-        }
-
-        [HttpGet("/health")]
-        public IActionResult Health()
-        {
-            return Ok(new
-            {
-                servico = "vagas-service",
-                status = "Healthy",
-                horario = DateTime.UtcNow
-            });
         }
     }
 }

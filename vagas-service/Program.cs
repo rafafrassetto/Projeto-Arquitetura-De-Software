@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.AdicionarObservabilidade();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpClient();
 
@@ -57,6 +58,8 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions
 forwardedHeadersOptions.KnownIPNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
+
+app.UsarObservabilidade("vagas-service");
 
 app.MapOpenApi();
 app.MapScalarApiReference();

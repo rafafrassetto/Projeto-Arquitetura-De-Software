@@ -21,5 +21,10 @@ namespace VagasService.Infra
         {
             return ServiceProvider.GetRequiredService<IConfiguration>();
         }
+
+        public static ILogger<T> CarregarLogger<T>()
+        {
+            return ServiceProvider.GetRequiredService<ILogger<T>>();
+        }
     }
 }

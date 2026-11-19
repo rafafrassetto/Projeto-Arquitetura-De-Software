@@ -21,5 +21,10 @@ namespace CobrancaService.Infra
         {
             return ServiceProvider.GetRequiredService<IConfiguration>();
         }
+
+        public static FilaEventos CarregarFilaEventos()
+        {
+            return ServiceProvider.GetRequiredService<FilaEventos>();
+        }
     }
 }

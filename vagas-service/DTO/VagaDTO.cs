@@ -53,5 +53,6 @@ namespace VagasService.DTO
         public double TaxaOcupacaoGeral { get; set; }
         public int TotalVagasLivres { get; set; }
         public string MensagemIa { get; set; } = string.Empty;
+        public string FonteAnalise { get; set; } = string.Empty;
     }
 }

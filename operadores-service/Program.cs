@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.AdicionarObservabilidade();
 builder.Services.AddOpenApi();
 
 var allowedOrigins = builder.Configuration
@@ -56,6 +57,8 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions
 forwardedHeadersOptions.KnownIPNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
+
+app.UsarObservabilidade("operadores-service");
 
 app.MapOpenApi();
 app.MapScalarApiReference();

@@ -7,6 +7,7 @@ using VeiculosService.Infra;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.AdicionarObservabilidade();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpClient();
 
@@ -56,6 +57,8 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions
 forwardedHeadersOptions.KnownIPNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
+
+app.UsarObservabilidade("veiculos-service");
 
 app.MapOpenApi();
 app.MapScalarApiReference();

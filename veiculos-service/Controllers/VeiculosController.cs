@@ -161,16 +161,5 @@ namespace VeiculosService.Controllers
                 return StatusCode(500, new { erro = ex.Message });
             }
         }
-
-        [HttpGet("/health")]
-        public IActionResult Health()
-        {
-            return Ok(new
-            {
-                servico = "veiculos-service",
-                status = "Healthy",
-                horario = DateTime.UtcNow
-            });
-        }
     }
 }

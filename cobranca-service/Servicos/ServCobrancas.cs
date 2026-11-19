@@ -11,12 +11,19 @@ namespace CobrancaService.Servicos
         private readonly DataContext _dataContext;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
+        private readonly FilaEventos _filaEventos;
 
         public ServCobrancas()
         {
             _dataContext = GeradorDeServicos.CarregarContexto();
             _httpClientFactory = GeradorDeServicos.CarregarHttpClientFactory();
             _configuration = GeradorDeServicos.CarregarConfiguration();
+            _filaEventos = GeradorDeServicos.CarregarFilaEventos();
+        }
+
+        public IEnumerable<EventoIntegracao> ListarEventos(string? status = null)
+        {
+            return _filaEventos.Historico(status);
         }
 
         public List<CobrancaDTO> Listar(string? statusPagamento = null, int? veiculoId = null, int? vagaId = null, int? operadorId = null)
@@ -165,7 +172,7 @@ namespace CobrancaService.Servicos
 
         // Integração de alteração de dados (Issue #9): cobranca-service -> vagas-service
         // Dispara PATCH /api/vagas/{id}/liberar para mudar o status da vaga para "Liberada" e limpar o VeiculoId.
-        public async Task<(bool Sucesso, string Mensagem)> LiberarVaga(int vagaId)
+        public async Task<(bool Sucesso, bool PodeRetentar, string Mensagem)> LiberarVaga(int vagaId)
         {
             var baseUrl = UrlsServicos.Obter(_configuration, "VagasService", "http://localhost:5001");
 
@@ -177,16 +184,16 @@ namespace CobrancaService.Servicos
                 var response = await client.PatchAsync($"{baseUrl}/api/vagas/{vagaId}/liberar", content: null);
 
                 if (response.IsSuccessStatusCode)
-                    return (true, $"Vaga ID {vagaId} liberada automaticamente no vagas-service.");
+                    return (true, false, $"Vaga ID {vagaId} liberada automaticamente no vagas-service.");
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    return (false, $"Vaga ID {vagaId} não foi encontrada no vagas-service.");
+                    return (false, false, $"Vaga ID {vagaId} não foi encontrada no vagas-service.");
 
-                return (false, $"vagas-service respondeu com status {(int)response.StatusCode} ao liberar a vaga {vagaId}.");
+                return (false, true, $"vagas-service respondeu com status {(int)response.StatusCode} ao liberar a vaga {vagaId}.");
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
-                return (false, $"Falha de comunicação com o vagas-service ({baseUrl}): {ex.Message}");
+                return (false, true, $"Falha de comunicação com o vagas-service ({baseUrl}): {ex.Message}");
             }
         }
 
@@ -271,13 +278,41 @@ namespace CobrancaService.Servicos
             _dataContext.SaveChanges();
 
             // Após gravar o pagamento, dispara a alteração no vagas-service para liberar a vaga
-            var (vagaLiberada, mensagemIntegracao) = await LiberarVaga(cobranca.VagaId);
+            var (vagaLiberada, podeRetentar, mensagemIntegracao) = await LiberarVaga(cobranca.VagaId);
+
+            // Comunicação assíncrona (Issue #11): eventos processados em segundo plano pelo ProcessadorEventos
+            var eventos = new List<EventoIntegracao>
+            {
+                new()
+                {
+                    Tipo = TiposEvento.PagamentoConfirmado,
+                    CobrancaId = cobranca.Id,
+                    RecursoId = cobranca.VeiculoId,
+                    CorrelationId = Correlacao.Atual
+                }
+            };
+
+            if (!vagaLiberada && podeRetentar)
+            {
+                eventos.Add(new EventoIntegracao
+                {
+                    Tipo = TiposEvento.LiberacaoVagaPendente,
+                    CobrancaId = cobranca.Id,
+                    RecursoId = cobranca.VagaId,
+                    CorrelationId = Correlacao.Atual
+                });
+                mensagemIntegracao += " A liberação foi agendada para nova tentativa em segundo plano.";
+            }
+
+            foreach (var evento in eventos)
+                _filaEventos.Publicar(evento);
 
             return new PagamentoConfirmadoDTO
             {
                 Cobranca = MapearParaDTO(cobranca),
                 VagaLiberada = vagaLiberada,
-                IntegracaoVagas = mensagemIntegracao
+                IntegracaoVagas = mensagemIntegracao,
+                EventosPublicados = eventos.Select(e => $"{e.Tipo} ({e.Id})").ToList()
             };
         }
 

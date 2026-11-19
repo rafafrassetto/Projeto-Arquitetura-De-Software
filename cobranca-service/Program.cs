@@ -1,5 +1,6 @@
 using CobrancaService;
 using CobrancaService.Infra;
+using CobrancaService.Servicos;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -7,8 +8,15 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.AdicionarObservabilidade();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpClient();
+
+// Comunicação assíncrona: a MESMA instância da fila é compartilhada entre o provider do template
+// (GeradorDeServicos) e o host da aplicação, onde roda o worker ProcessadorEventos.
+var filaEventos = new FilaEventos();
+builder.Services.AddSingleton(filaEventos);
+builder.Services.AddHostedService<ProcessadorEventos>();
 
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
@@ -56,6 +64,8 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions
 forwardedHeadersOptions.KnownIPNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
+
+app.UsarObservabilidade("cobranca-service");
 
 app.MapOpenApi();
 app.MapScalarApiReference();

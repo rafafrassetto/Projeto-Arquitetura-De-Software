@@ -48,6 +48,7 @@ namespace CobrancaService.DTO
         public CobrancaDTO Cobranca { get; set; } = new();
         public bool VagaLiberada { get; set; }
         public string IntegracaoVagas { get; set; } = string.Empty;
+        public List<string> EventosPublicados { get; set; } = [];
     }
 
     public class SimulacaoTarifaDTO

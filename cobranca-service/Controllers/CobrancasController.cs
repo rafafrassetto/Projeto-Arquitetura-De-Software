@@ -52,6 +52,13 @@ namespace CobrancaService.Controllers
             }
         }
 
+        // Comunicação assíncrona: histórico dos eventos publicados e o resultado do processamento em segundo plano
+        [HttpGet("eventos")]
+        public IActionResult ListarEventos([FromQuery] string? status)
+        {
+            return Ok(_servCobrancas.ListarEventos(status));
+        }
+
         [HttpGet("{id:int}/calcular")]
         public IActionResult CalcularTarifa(int id)
         {
@@ -140,7 +147,8 @@ namespace CobrancaService.Controllers
                     mensagem = $"Pagamento da cobrança {resultado.Cobranca.Id} confirmado com sucesso.",
                     cobranca = resultado.Cobranca,
                     vagaLiberada = resultado.VagaLiberada,
-                    integracaoVagas = resultado.IntegracaoVagas
+                    integracaoVagas = resultado.IntegracaoVagas,
+                    eventosPublicados = resultado.EventosPublicados
                 });
             }
             catch (ArgumentException ex)
@@ -199,17 +207,6 @@ namespace CobrancaService.Controllers
             {
                 return StatusCode(500, new { erro = ex.Message });
             }
-        }
-
-        [HttpGet("/health")]
-        public IActionResult Health()
-        {
-            return Ok(new
-            {
-                servico = "cobranca-service",
-                status = "Healthy",
-                horario = DateTime.UtcNow
-            });
         }
     }
 }

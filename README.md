@@ -23,13 +23,15 @@ O **Sistema de Estacionamento Rotativo** tem como propósito informatizar e desc
 
 | Código | Requisito Funcional | Microsserviço Responsável |
 | :--- | :--- | :--- |
-| **RF01** | **Gerenciar Vagas:** Permitir cadastrar, listar, consultar por ID, atualizar e excluir vagas do pátio, controlando código identificador (ex.: `A-01`), setor, tipo (`Comum`, `Idoso`, `PCD`, `Moto`), status (`Liberada`, `Ocupada`, `Manutencao`) e o ID do veículo ocupante (`VeiculoId`). | `vagas-service` |
+| **RF01** | **Gerenciar Vagas:** Permitir cadastrar, listar, consultar por ID, atualizar e excluir vagas do pátio, controlando código identificador (ex.: `A-01`), setor, tipo (`Carro`, `Moto`, `PCD`, `Idoso`), status (`Liberada`, `Ocupada`, `Manutencao`) e o ID do veículo ocupante (`VeiculoId`). | `vagas-service` |
 | **RF02** | **Gerenciar Veículos:** Permitir cadastrar, listar, buscar por ID ou placa, atualizar e remover veículos, mantendo placa, modelo, cor, nome e telefone do condutor, data/hora de entrada e status de permanência ativa no pátio (`AtivoNoPatio`). | `veiculos-service` |
 | **RF03** | **Gerenciar Operadores:** Permitir cadastrar, listar, consultar por ID, atualizar e excluir operadores do estacionamento, registrando nome, CPF, matrícula, cargo (`Operador de Caixa`, `Manobrista`, `Administrador`), turno e status ativo. | `operadores-service` |
 | **RF04** | **Gerenciar Cobranças e Tarifas:** Permitir registrar tickets de cobrança vinculados a um veículo, uma vaga e um operador, calcular o valor total com base no tempo de permanência e tarifa horária, consultar cobranças e registrar a liquidação do pagamento (`Pendente`, `Pago`, `Cancelado`). | `cobranca-service` |
 | **RF05** | **Consultar Veículo Ocupante na Busca de Vaga (1ª Busca):** Ao consultar os detalhes de uma vaga específica no `vagas-service`, caso haja um veículo alocado (`VeiculoId`), o serviço deve buscar e retornar automaticamente os dados completos do veículo junto ao `veiculos-service`. | `vagas-service` $\rightarrow$ `veiculos-service` |
 | **RF06** | **Validar Veículo Ativo ao Registrar Cobrança (2ª Busca):** Ao registrar uma nova cobrança no `cobranca-service`, o sistema deve consultar o `veiculos-service` para verificar se o veículo existe e se está com entrada ativa no pátio (`AtivoNoPatio = true`) antes de efetivar o registro. | `cobranca-service` $\rightarrow$ `veiculos-service` |
 | **RF07** | **Liberar Vaga Automaticamente no Pagamento (Alteração de Dados):** Ao confirmar o pagamento de uma cobrança no `cobranca-service`, o serviço deve disparar uma requisição de atualização para o `vagas-service`, alterando o status da vaga para `Liberada` e limpando o vínculo com o veículo (`VeiculoId = null`). | `cobranca-service` $\rightarrow$ `vagas-service` |
+| **RF08** | **Registrar Saída do Veículo de Forma Assíncrona:** Após a confirmação do pagamento, o `cobranca-service` publica um evento que é processado em segundo plano e registra a saída do veículo no `veiculos-service` (`AtivoNoPatio = false`), com novas tentativas automáticas em caso de falha. | `cobranca-service` $\rightarrow$ `veiculos-service` |
+| **RF09** | **Sugerir Vaga com Apoio de IA:** Sugerir a melhor vaga livre para o tipo de veículo informado e apresentar uma análise da ocupação do pátio gerada por IA (Claude), com alternativa heurística quando a IA não estiver configurada. | `vagas-service` |
 
 ---
 
@@ -39,6 +41,9 @@ O **Sistema de Estacionamento Rotativo** tem como propósito informatizar e desc
 * **Framework / Linguagem:** .NET (ASP.NET Core Web API / C#) seguindo o template de microsserviços da disciplina.
 * **Banco de Dados:** SQLite com Entity Framework Core, adotando o padrão *Database per Service* (cada microsserviço possui sua própria base `.db` isolada).
 * **Protocolo de Comunicação:** APIs RESTful trafegando JSON sobre HTTP/HTTPS, utilizando `HttpClient` para chamadas síncronas entre microsserviços.
+* **Comunicação Assíncrona:** fila de eventos (`System.Threading.Channels`) com *worker* em segundo plano e retentativas no `cobranca-service` (ver seção 6.2).
+* **Observabilidade:** health checks, logs estruturados em JSON, Correlation ID propagado entre serviços e endpoint de métricas (ver seção 6.1).
+* **Inteligência Artificial:** análise de ocupação do pátio com o Claude (Anthropic) no `vagas-service` (ver seção 6.3).
 * **Documentação Interativa:** Swagger / OpenAPI configurado em todos os serviços.
 * **Ambiente de Nuvem (PaaS):** Publicação individual dos serviços como *Web Services* na plataforma [Render](https://render.com/).
 
@@ -100,6 +105,7 @@ flowchart LR
     Vagas -- "1ª Busca (GET /veiculos/{id})\nExibe dados do veículo ocupante" --> Veiculos
     Cobranca -- "2ª Busca (GET /veiculos/{id})\nValida se o veículo está ativo no pátio" --> Veiculos
     Cobranca -- "Alteração (PATCH /vagas/{id}/liberar)\nLibera a vaga ao confirmar pagamento" --> Vagas
+    Cobranca -. "Evento assíncrono PagamentoConfirmado\n(PATCH /veiculos/{id}/saida)" .-> Veiculos
 ```
 
 ### 3.1. Primeira Busca de Dados — Consulta de Ocupação da Vaga (`vagas-service` $\rightarrow$ `veiculos-service`)
@@ -183,3 +189,47 @@ Para gerar o `.zip` com os fontes (sem `bin/`, `obj/` e bancos `.db`), a partir 
 ```bash
 git archive --format=zip --output=Projeto-Arquitetura-De-Software.zip HEAD
 ```
+
+---
+
+## 6. Recursos Extras de Arquitetura (Item 7 da Avaliação)
+
+### 6.1. Observabilidade (todos os microsserviços)
+Implementada em `Infra/Observabilidade.cs` de cada serviço, sem dependências externas:
+* **Health checks reais — `GET /health`:** usa o `HealthChecks` do ASP.NET Core com uma verificação de conexão ao banco SQLite. Retorna `200 Healthy` ou `503 Unhealthy` e é usado pelo Render (`healthCheckPath`) para saber se o serviço está no ar.
+* **Logs estruturados em JSON:** cada requisição gera um log com método, caminho, status e duração em ms, além do nome do serviço e do *Correlation ID* no escopo do log.
+* **Rastreamento distribuído por Correlation ID:** o header `X-Correlation-Id` é recebido (ou gerado) na entrada, devolvido na resposta e repassado automaticamente em todas as chamadas `HttpClient` entre os microsserviços (inclusive nos eventos assíncronos). Assim, um único pagamento pode ser seguido nos logs do `cobranca-service`, do `vagas-service` e do `veiculos-service` pelo mesmo ID.
+* **Métricas — `GET /metricas`:** total de requisições, erros 4xx/5xx, duração média e máxima, tempo de atividade e contagem por endpoint.
+
+```bash
+curl -X PATCH $COBRANCA/cobrancas/1/pagar -H "X-Correlation-Id: demo-pagamento-1"
+# depois, procurar "demo-pagamento-1" nos logs dos três serviços no painel do Render
+curl $COBRANCA/metricas
+```
+
+### 6.2. Comunicação Assíncrona (`cobranca-service`)
+Implementada com uma fila de eventos em memória (`System.Threading.Channels`, em `Infra/FilaEventos.cs`) consumida por um *worker* em segundo plano (`BackgroundService`, em `Servicos/ProcessadorEventos.cs`):
+* **`PagamentoConfirmado`:** ao confirmar um pagamento, o `cobranca-service` publica o evento e responde na hora; o worker chama `PATCH /veiculos/{id}/saida` no `veiculos-service` para encerrar a permanência do veículo no pátio (`AtivoNoPatio = false`).
+* **`LiberacaoVagaPendente`:** se a liberação síncrona da vaga falhar (ex.: `vagas-service` fora do ar ou acordando no Render), o pagamento **não é perdido**: a liberação é reenfileirada e tentada de novo com *backoff* exponencial (2s, 4s, 8s, 16s; até 5 tentativas).
+* **Acompanhamento — `GET /cobrancas/eventos?status=`:** lista os últimos eventos com tipo, tentativas, status (`Pendente`, `Processando`, `AguardandoNovaTentativa`, `Concluido`, `Falhou`) e a última mensagem.
+
+> A fila é em memória, adequada ao escopo acadêmico e ao plano Free do Render. Em produção, o mesmo padrão seria aplicado com um *broker* de mensagens (RabbitMQ, Azure Service Bus etc.) para garantir durabilidade.
+
+### 6.3. Integração com IA e Funcionalidade Criativa (`vagas-service`)
+* **`GET /vagas/sugestao-ia?tipoVeiculo=Moto`:** sugere a vaga ideal para o próximo veículo. A escolha da vaga é feita por uma regra determinística (tipo compatível, ordem de setor e código) e o **Claude** (IA generativa da Anthropic, via SDK oficial `Anthropic` para .NET) gera uma orientação curta para o atendente, analisando a taxa de ocupação, as vagas livres por tipo e alertas operacionais.
+* **Configuração:** basta definir a variável de ambiente `ANTHROPIC_API_KEY` (opcional: `IA__Modelo`; padrão `claude-opus-5-5`). Sem a chave, ou se a IA não responder, o serviço usa automaticamente uma análise heurística local. O campo `fonteAnalise` da resposta informa qual foi usada.
+* **Alocação de vaga — `PATCH /vagas/{id}/alocar`:** vincula um veículo a uma vaga livre, completando o ciclo entrada → alocação → cobrança → pagamento → liberação automática.
+
+### 6.4. Endpoints Adicionais
+
+| Serviço | Endpoint | Descrição |
+| :--- | :--- | :--- |
+| Todos | `GET /health` | Health check com verificação do banco SQLite |
+| Todos | `GET /metricas` | Métricas de requisições do serviço |
+| Todos | `GET /scalar/v1` | Documentação interativa da API (OpenAPI + Scalar) |
+| `vagas-service` | `PATCH /vagas/{id}/alocar` | Aloca um veículo em uma vaga livre |
+| `vagas-service` | `GET /vagas/sugestao-ia` | Sugestão de vaga com análise de ocupação por IA |
+| `veiculos-service` | `PATCH /veiculos/{id}/entrada` e `/saida` | Registra entrada/saída do veículo no pátio |
+| `cobranca-service` | `GET /cobrancas/{id}/calcular` | Simula o valor da estadia até o momento |
+| `cobranca-service` | `PATCH /cobrancas/{id}/cancelar` | Cancela uma cobrança pendente |
+| `cobranca-service` | `GET /cobrancas/eventos` | Histórico dos eventos assíncronos |
