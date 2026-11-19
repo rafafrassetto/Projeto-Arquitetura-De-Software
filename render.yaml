@@ -1,0 +1,74 @@
+# Blueprint do Render (https://render.com/docs/blueprint-spec)
+# Cria os 4 microsserviços como Web Services Docker no plano Free, com deploy automático a cada commit.
+#
+# Como usar: Render Dashboard > New > Blueprint > selecionar este repositório.
+#
+# IMPORTANTE: as URLs abaixo assumem que o Render vai gerar exatamente
+# https://<nome-do-serviço>.onrender.com. Se o nome já estiver em uso, o Render adiciona um
+# sufixo (ex.: estacionamento-veiculos-service-x1y2.onrender.com). Nesse caso, ajuste as variáveis
+# ServicesUrls__* no painel (Environment) do serviço que faz a chamada.
+
+services:
+  - type: web
+    name: estacionamento-vagas-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./vagas-service/Dockerfile
+    dockerContext: ./vagas-service
+    healthCheckPath: /health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - vagas-service/**
+    envVars:
+      - key: ServicesUrls__VeiculosService
+        value: https://estacionamento-veiculos-service.onrender.com
+      - key: Integracoes__TimeoutSegundos
+        value: "60"
+      # Opcional: chave da API da Anthropic para a análise de ocupação com IA (GET /vagas/sugestao-ia).
+      # Sem a chave, o serviço usa a heurística local.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+  - type: web
+    name: estacionamento-veiculos-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./veiculos-service/Dockerfile
+    dockerContext: ./veiculos-service
+    healthCheckPath: /health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - veiculos-service/**
+
+  - type: web
+    name: estacionamento-operadores-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./operadores-service/Dockerfile
+    dockerContext: ./operadores-service
+    healthCheckPath: /health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - operadores-service/**
+
+  - type: web
+    name: estacionamento-cobranca-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./cobranca-service/Dockerfile
+    dockerContext: ./cobranca-service
+    healthCheckPath: /health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - cobranca-service/**
+    envVars:
+      - key: ServicesUrls__VeiculosService
+        value: https://estacionamento-veiculos-service.onrender.com
+      - key: ServicesUrls__VagasService
+        value: https://estacionamento-vagas-service.onrender.com
+      - key: Integracoes__TimeoutSegundos
+        value: "60"

@@ -9,6 +9,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ServicesUrls__VeiculosService=http://veiculos-service:8080
+      - Integracoes__TimeoutSegundos=10
     volumes:
       - vagas-data:/data
 
@@ -46,6 +47,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ServicesUrls__VeiculosService=http://veiculos-service:8080
+      - Integracoes__TimeoutSegundos=10
       - ServicesUrls__VagasService=http://vagas-service:8080
     volumes:
       - cobranca-data:/data

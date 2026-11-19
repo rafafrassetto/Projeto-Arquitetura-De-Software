@@ -24,4 +24,5 @@ COPY --from=build --chown=app:app /app/publish .
 
 USER app
 WORKDIR /data
-ENTRYPOINT ["sh", "-c", "RUNTIMECONFIG=$(find /app -maxdepth 1 -name '*.runtimeconfig.json' | head -n 1); test -n \"$RUNTIMECONFIG\"; exec dotnet \"${RUNTIMECONFIG%.runtimeconfig.json}.dll\""]
+# No Render a porta vem da variável PORT; localmente/docker-compose usa 8080
+ENTRYPOINT ["sh", "-c", "export ASPNETCORE_HTTP_PORTS=${PORT:-8080}; RUNTIMECONFIG=$(find /app -maxdepth 1 -name '*.runtimeconfig.json' | head -n 1); test -n \"$RUNTIMECONFIG\"; exec dotnet \"${RUNTIMECONFIG%.runtimeconfig.json}.dll\""]

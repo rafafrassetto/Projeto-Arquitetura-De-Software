@@ -118,11 +118,68 @@ flowchart LR
 
 ## 4. Publicação em Nuvem (Render)
 
-Os microsserviços da aplicação são configurados para execução pública na plataforma **Render** ([https://render.com/](https://render.com/)):
+Os quatro microsserviços são publicados como **Web Services Docker** no plano **Free** do [Render](https://render.com/), com deploy automático a cada commit na branch `main`.
 
-| Microsserviço | Diretório no Repositório | URL no Render |
+| Microsserviço | Diretório no Repositório | URL no Render | Documentação (Scalar) |
+| :--- | :--- | :--- | :--- |
+| **Vagas Service** | `/vagas-service` | https://estacionamento-vagas-service.onrender.com | [`/scalar/v1`](https://estacionamento-vagas-service.onrender.com/scalar/v1) |
+| **Veículos Service** | `/veiculos-service` | https://estacionamento-veiculos-service.onrender.com | [`/scalar/v1`](https://estacionamento-veiculos-service.onrender.com/scalar/v1) |
+| **Operadores Service** | `/operadores-service` | https://estacionamento-operadores-service.onrender.com | [`/scalar/v1`](https://estacionamento-operadores-service.onrender.com/scalar/v1) |
+| **Cobrança Service** | `/cobranca-service` | https://estacionamento-cobranca-service.onrender.com | [`/scalar/v1`](https://estacionamento-cobranca-service.onrender.com/scalar/v1) |
+
+> **Plano Free:** os serviços "dormem" após 15 minutos sem acesso e levam cerca de 1 minuto para acordar na primeira requisição. Por isso, o timeout das chamadas entre microsserviços é de 60 segundos (`Integracoes__TimeoutSegundos`). O SQLite fica no disco efêmero do container: os dados de exemplo (seed) são recriados a cada novo deploy ou reinício.
+
+### 4.1. Como o deploy está configurado
+* **`render.yaml` (Blueprint):** descreve os 4 Web Services (runtime Docker, plano Free, `healthCheckPath: /health`, deploy automático e `buildFilter` para que um commit em um serviço só gere novo deploy dele).
+* **`Dockerfile` de cada serviço:** build multi-stage com o SDK do .NET 10 e imagem final `aspnet:10.0`. A porta é lida da variável `PORT` que o Render injeta (localmente usa `8080`).
+* **URLs de integração por variável de ambiente:** o .NET lê `ServicesUrls__VeiculosService` e `ServicesUrls__VagasService` como `ServicesUrls:VeiculosService` e `ServicesUrls:VagasService` do `appsettings.json`.
+
+| Serviço | Variável de ambiente | Valor no Render |
 | :--- | :--- | :--- |
-| **Vagas Service** | `/vagas-service` | *A ser preenchido no deploy (Issue #10)* |
-| **Veículos Service** | `/veiculos-service` | *A ser preenchido no deploy (Issue #10)* |
-| **Operadores Service** | `/operadores-service` | *A ser preenchido no deploy (Issue #10)* |
-| **Cobrança Service** | `/cobranca-service` | *A ser preenchido no deploy (Issue #10)* |
+| `vagas-service` | `ServicesUrls__VeiculosService` | `https://estacionamento-veiculos-service.onrender.com` |
+| `vagas-service` | `ANTHROPIC_API_KEY` *(opcional)* | chave da API da Anthropic para a análise de ocupação com IA |
+| `cobranca-service` | `ServicesUrls__VeiculosService` | `https://estacionamento-veiculos-service.onrender.com` |
+| `cobranca-service` | `ServicesUrls__VagasService` | `https://estacionamento-vagas-service.onrender.com` |
+| `vagas-service`, `cobranca-service` | `Integracoes__TimeoutSegundos` | `60` |
+
+### 4.2. Passo a passo para publicar
+1. No Render, acessar **New > Blueprint** e conectar a conta do GitHub, liberando o repositório `Projeto-Arquitetura-De-Software`.
+2. Selecionar o repositório: o Render lê o `render.yaml` e lista os 4 serviços. Confirmar com **Apply**.
+3. Aguardar o build dos 4 serviços e conferir se a URL gerada de cada um é igual à da tabela acima. Se o Render adicionar um sufixo ao nome (ex.: `estacionamento-vagas-service-ab12.onrender.com`), atualizar as variáveis `ServicesUrls__*` em **Environment** no serviço que faz a chamada e a tabela deste README.
+4. Testar o `GET /health` de cada serviço e depois os fluxos da seção 5.
+
+*Alternativa sem Blueprint:* criar cada serviço em **New > Web Service**, escolher o repositório, **Language: Docker**, **Root Directory** = pasta do serviço (ex.: `vagas-service`), **Instance Type: Free**, **Health Check Path** = `/health`, e cadastrar as variáveis da tabela acima.
+
+---
+
+## 5. Como Testar as Integrações
+
+Os exemplos abaixo usam as URLs do Render. Para testar localmente, troque pelas portas `http://localhost:5001` (vagas), `5002` (veículos), `5003` (operadores) e `5004` (cobrança). Os bancos já começam com dados de exemplo: a vaga `2` (A-02) está ocupada pelo veículo `1`, que tem a cobrança `1` pendente.
+
+```bash
+VAGAS=https://estacionamento-vagas-service.onrender.com
+COBRANCA=https://estacionamento-cobranca-service.onrender.com
+
+# 1ª Busca: a vaga 2 retorna junto os dados do veículo ocupante (vindos do veiculos-service)
+curl $VAGAS/vagas/2
+
+# 2ª Busca: cobrança para o veículo 3 (fora do pátio) é recusada com 409 após consultar o veiculos-service
+curl -X POST $COBRANCA/cobrancas -H "Content-Type: application/json" \
+     -d '{"veiculoId":3,"vagaId":3,"operadorId":1}'
+
+# Alteração: pagar a cobrança 1 libera automaticamente a vaga 2 no vagas-service
+curl -X PATCH $COBRANCA/cobrancas/1/pagar -H "Content-Type: application/json" \
+     -d '{"formaPagamento":"Pix"}'
+curl $VAGAS/vagas/2   # status "Liberada" e veiculoId null
+```
+
+### 5.1. Executar localmente
+* **Com Docker:** `docker compose up --build` (portas 5001 a 5004).
+* **Sem Docker:** em cada pasta de serviço, executar `dotnet run` (as portas já estão definidas no `launchSettings.json`). A documentação interativa fica em `http://localhost:<porta>/scalar/v1`.
+
+### 5.2. Pacote para entrega
+Para gerar o `.zip` com os fontes (sem `bin/`, `obj/` e bancos `.db`), a partir da raiz do repositório:
+
+```bash
+git archive --format=zip --output=Projeto-Arquitetura-De-Software.zip HEAD
+```

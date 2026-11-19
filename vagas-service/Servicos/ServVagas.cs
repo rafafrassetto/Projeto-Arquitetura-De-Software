@@ -239,18 +239,12 @@ namespace VagasService.Servicos
         {
             try
             {
-                var baseUrl = _configuration["ServicesUrls:VeiculosService"] 
-                           ?? _configuration["ServicosUrls:VeiculosService"] 
-                           ?? "http://localhost:5002";
+                var baseUrl = UrlsServicos.Obter(_configuration, "VeiculosService", "http://localhost:5002");
 
                 var client = _httpClientFactory.CreateClient();
-                client.Timeout = TimeSpan.FromSeconds(5);
+                client.Timeout = UrlsServicos.Timeout(_configuration);
 
-                var response = await client.GetAsync($"{baseUrl.TrimEnd('/')}/api/veiculos/{veiculoId}");
-                if (!response.IsSuccessStatusCode)
-                {
-                    response = await client.GetAsync($"{baseUrl.TrimEnd('/')}/veiculos/{veiculoId}");
-                }
+                var response = await client.GetAsync($"{baseUrl}/api/veiculos/{veiculoId}");
 
                 if (response.IsSuccessStatusCode)
                 {
