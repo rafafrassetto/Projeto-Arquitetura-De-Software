@@ -236,11 +236,47 @@ Implementada com uma fila de eventos em memória (`System.Threading.Channels`, e
 
 ---
 
-## 7. Referências Bibliográficas
+## 7. Requisitos Implementados
+
+### 7.1. Requisitos da Avaliação
+
+| Requisito | Como foi atendido | Situação |
+| :--- | :--- | :--- |
+| Pelo menos quatro microsserviços | `vagas-service`, `veiculos-service`, `operadores-service` e `cobranca-service`, cada um com seu próprio banco SQLite | Implementado |
+| Primeira busca de dados entre microsserviços | `GET /vagas/{id}` consulta o `veiculos-service` e retorna os dados do veículo ocupante | Implementado |
+| Segunda busca de dados entre microsserviços | `POST /cobrancas` consulta o `veiculos-service` e só registra a cobrança se o veículo estiver ativo no pátio | Implementado |
+| Alteração de dados disparada por outro microsserviço | `PATCH /cobrancas/{id}/pagar` aciona o `vagas-service`, que muda a vaga para `Liberada` e remove o `VeiculoId` | Implementado |
+| Uso do template da disciplina (.NET, SQLite, REST) | ASP.NET Core (.NET 10), Entity Framework Core com SQLite, APIs REST com OpenAPI/Scalar e estrutura do template (`Controllers`, `Servicos`, `DTO`, `Models`, `Infra/GeradorDeServicos`) | Implementado |
+| Documento de requisitos (propósito, usuários e requisitos funcionais) | Seção 1 deste README | Implementado |
+| Descritivo técnico dos microsserviços | Seções 2 e 3 deste README | Implementado |
+| Código-fonte no GitHub com requisitos no README | Repositório `rafafrassetto/Projeto-Arquitetura-De-Software` | Implementado |
+| Aplicação publicada no Render | Quatro Web Services no plano Free (seção 4) | Implementado |
+| Extra: domínio e funcionalidades criativas | Estacionamento rotativo com alocação de vagas, cálculo de estadia por tempo e sugestão de vaga | Implementado |
+| Extra: comunicação assíncrona | Fila de eventos com processamento em segundo plano e retentativas (seção 6.2) | Implementado |
+| Extra: observabilidade | Health checks, logs estruturados em JSON, Correlation ID entre serviços e métricas (seção 6.1) | Implementado |
+| Extra: integração com IA | Análise de ocupação do pátio com o Claude (Anthropic) no `vagas-service` (seção 6.3) | Implementado |
+
+### 7.2. Requisitos Funcionais
+
+| Código | Requisito | Microsserviço | Situação |
+| :--- | :--- | :--- | :--- |
+| RF01 | Gerenciar vagas | `vagas-service` | Implementado |
+| RF02 | Gerenciar veículos | `veiculos-service` | Implementado |
+| RF03 | Gerenciar operadores | `operadores-service` | Implementado |
+| RF04 | Gerenciar cobranças e tarifas | `cobranca-service` | Implementado |
+| RF05 | Consultar veículo ocupante na busca de vaga (1ª busca) | `vagas-service` → `veiculos-service` | Implementado |
+| RF06 | Validar veículo ativo ao registrar cobrança (2ª busca) | `cobranca-service` → `veiculos-service` | Implementado |
+| RF07 | Liberar vaga automaticamente no pagamento (alteração de dados) | `cobranca-service` → `vagas-service` | Implementado |
+| RF08 | Registrar saída do veículo de forma assíncrona | `cobranca-service` → `veiculos-service` | Implementado |
+| RF09 | Sugerir vaga com apoio de IA | `vagas-service` | Implementado |
+
+---
+
+## 8. Referências Bibliográficas
 
 As referências seguem o padrão da ABNT (NBR 6023).
 
-### 7.1. Arquitetura de Software e Microsserviços
+### 8.1. Arquitetura de Software e Microsserviços
 * EVANS, Eric. **Domain-Driven Design**: tackling complexity in the heart of software. Boston: Addison-Wesley, 2003.
 * FIELDING, Roy Thomas. **Architectural styles and the design of network-based software architectures**. 2000. Tese (Doutorado em Information and Computer Science) – University of California, Irvine, 2000. Disponível em: https://ics.uci.edu/~fielding/pubs/dissertation/top.htm. Acesso em: 19 nov. 2026.
 * LEWIS, James; FOWLER, Martin. **Microservices**: a definition of this new architectural term. 2014. Disponível em: https://martinfowler.com/articles/microservices.html. Acesso em: 19 nov. 2026.
@@ -248,13 +284,13 @@ As referências seguem o padrão da ABNT (NBR 6023).
 * RICHARDS, Mark; FORD, Neal. **Fundamentals of software architecture**: an engineering approach. Sebastopol: O'Reilly Media, 2020.
 * RICHARDSON, Chris. **Microservices patterns**: with examples in Java. Shelter Island: Manning, 2018.
 
-### 7.2. Integração, Comunicação Assíncrona, Resiliência e Observabilidade
+### 8.2. Integração, Comunicação Assíncrona, Resiliência e Observabilidade
 * HOHPE, Gregor; WOOLF, Bobby. **Enterprise integration patterns**: designing, building, and deploying messaging solutions. Boston: Addison-Wesley, 2003.
 * KLEPPMANN, Martin. **Designing data-intensive applications**: the big ideas behind reliable, scalable, and maintainable systems. Sebastopol: O'Reilly Media, 2017.
 * MAJORS, Charity; FONG-JONES, Liz; MIRANDA, George. **Observability engineering**: achieving production excellence. Sebastopol: O'Reilly Media, 2022.
 * NYGARD, Michael T. **Release it!**: design and deploy production-ready software. 2. ed. Raleigh: The Pragmatic Bookshelf, 2018.
 
-### 7.3. Documentação Técnica das Tecnologias Utilizadas
+### 8.3. Documentação Técnica das Tecnologias Utilizadas
 * ANTHROPIC. **Claude API documentation**. Disponível em: https://platform.claude.com/docs. Acesso em: 19 nov. 2026.
 * DE LA TORRE, Cesar; WAGNER, Bill; ROUSOS, Mike. **.NET microservices**: architecture for containerized .NET applications. Redmond: Microsoft, 2023. Disponível em: https://learn.microsoft.com/dotnet/architecture/microservices/. Acesso em: 19 nov. 2026.
 * MICROSOFT. **Health checks in ASP.NET Core**. Disponível em: https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks. Acesso em: 19 nov. 2026.
@@ -263,5 +299,5 @@ As referências seguem o padrão da ABNT (NBR 6023).
 * RENDER. **Blueprint YAML reference**. Disponível em: https://render.com/docs/blueprint-spec. Acesso em: 19 nov. 2026.
 * SQLITE. **SQLite documentation**. Disponível em: https://www.sqlite.org/docs.html. Acesso em: 19 nov. 2026.
 
-### 7.4. Material da Disciplina
+### 8.4. Material da Disciplina
 * CENTRO UNIVERSITÁRIO SATC. **Arquitetura de Software**: template de microsserviço em .NET (SQLite e REST) e especificação do Projeto – Arquitetura em Microsserviços. Criciúma: SATC, 2026. Material didático disponibilizado no portal do aluno.
