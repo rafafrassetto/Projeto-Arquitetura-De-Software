@@ -233,3 +233,35 @@ Implementada com uma fila de eventos em memória (`System.Threading.Channels`, e
 | `cobranca-service` | `GET /cobrancas/{id}/calcular` | Simula o valor da estadia até o momento |
 | `cobranca-service` | `PATCH /cobrancas/{id}/cancelar` | Cancela uma cobrança pendente |
 | `cobranca-service` | `GET /cobrancas/eventos` | Histórico dos eventos assíncronos |
+
+---
+
+## 7. Referências Bibliográficas
+
+As referências seguem o padrão da ABNT (NBR 6023).
+
+### 7.1. Arquitetura de Software e Microsserviços
+* EVANS, Eric. **Domain-Driven Design**: tackling complexity in the heart of software. Boston: Addison-Wesley, 2003.
+* FIELDING, Roy Thomas. **Architectural styles and the design of network-based software architectures**. 2000. Tese (Doutorado em Information and Computer Science) – University of California, Irvine, 2000. Disponível em: https://ics.uci.edu/~fielding/pubs/dissertation/top.htm. Acesso em: 19 nov. 2026.
+* LEWIS, James; FOWLER, Martin. **Microservices**: a definition of this new architectural term. 2014. Disponível em: https://martinfowler.com/articles/microservices.html. Acesso em: 19 nov. 2026.
+* NEWMAN, Sam. **Building microservices**: designing fine-grained systems. 2. ed. Sebastopol: O'Reilly Media, 2021.
+* RICHARDS, Mark; FORD, Neal. **Fundamentals of software architecture**: an engineering approach. Sebastopol: O'Reilly Media, 2020.
+* RICHARDSON, Chris. **Microservices patterns**: with examples in Java. Shelter Island: Manning, 2018.
+
+### 7.2. Integração, Comunicação Assíncrona, Resiliência e Observabilidade
+* HOHPE, Gregor; WOOLF, Bobby. **Enterprise integration patterns**: designing, building, and deploying messaging solutions. Boston: Addison-Wesley, 2003.
+* KLEPPMANN, Martin. **Designing data-intensive applications**: the big ideas behind reliable, scalable, and maintainable systems. Sebastopol: O'Reilly Media, 2017.
+* MAJORS, Charity; FONG-JONES, Liz; MIRANDA, George. **Observability engineering**: achieving production excellence. Sebastopol: O'Reilly Media, 2022.
+* NYGARD, Michael T. **Release it!**: design and deploy production-ready software. 2. ed. Raleigh: The Pragmatic Bookshelf, 2018.
+
+### 7.3. Documentação Técnica das Tecnologias Utilizadas
+* ANTHROPIC. **Claude API documentation**. Disponível em: https://platform.claude.com/docs. Acesso em: 19 nov. 2026.
+* DE LA TORRE, Cesar; WAGNER, Bill; ROUSOS, Mike. **.NET microservices**: architecture for containerized .NET applications. Redmond: Microsoft, 2023. Disponível em: https://learn.microsoft.com/dotnet/architecture/microservices/. Acesso em: 19 nov. 2026.
+* MICROSOFT. **Health checks in ASP.NET Core**. Disponível em: https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks. Acesso em: 19 nov. 2026.
+* MICROSOFT. **Entity Framework Core**. Disponível em: https://learn.microsoft.com/ef/core/. Acesso em: 19 nov. 2026.
+* MICROSOFT. **System.Threading.Channels library**. Disponível em: https://learn.microsoft.com/dotnet/core/extensions/channels. Acesso em: 19 nov. 2026.
+* RENDER. **Blueprint YAML reference**. Disponível em: https://render.com/docs/blueprint-spec. Acesso em: 19 nov. 2026.
+* SQLITE. **SQLite documentation**. Disponível em: https://www.sqlite.org/docs.html. Acesso em: 19 nov. 2026.
+
+### 7.4. Material da Disciplina
+* CENTRO UNIVERSITÁRIO SATC. **Arquitetura de Software**: template de microsserviço em .NET (SQLite e REST) e especificação do Projeto – Arquitetura em Microsserviços. Criciúma: SATC, 2026. Material didático disponibilizado no portal do aluno.
