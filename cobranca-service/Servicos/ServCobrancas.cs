@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using CobrancaService.DTO;
 using CobrancaService.Infra;
 using CobrancaService.Models;
@@ -8,10 +9,14 @@ namespace CobrancaService.Servicos
     {
         private static readonly string[] StatusValidos = ["Pendente", "Pago", "Cancelado"];
         private readonly DataContext _dataContext;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IConfiguration _configuration;
 
         public ServCobrancas()
         {
             _dataContext = GeradorDeServicos.CarregarContexto();
+            _httpClientFactory = GeradorDeServicos.CarregarHttpClientFactory();
+            _configuration = GeradorDeServicos.CarregarConfiguration();
         }
 
         public List<CobrancaDTO> Listar(string? statusPagamento = null, int? veiculoId = null, int? vagaId = null, int? operadorId = null)
@@ -76,7 +81,8 @@ namespace CobrancaService.Servicos
             };
         }
 
-        public CobrancaDTO Criar(CriarCobrancaDTO dto)
+        // 2ª Busca de Dados (Issue #8): valida veículo ativo no veiculos-service antes de criar cobrança
+        public async Task<CobrancaDTO> Criar(CriarCobrancaDTO dto)
         {
             if (dto.VeiculoId <= 0)
                 throw new ArgumentException("O ID do veículo deve ser maior que zero.");
@@ -90,7 +96,16 @@ namespace CobrancaService.Servicos
             if (dto.ValorHora <= 0)
                 throw new ArgumentException("O valor da hora deve ser maior que zero.");
 
-            var dataEntrada = dto.DataHoraEntrada ?? DateTime.UtcNow;
+            // 2ª Busca de dados: consultar veiculos-service e validar se o veículo existe e está ativo no pátio
+            var veiculo = await ConsultarVeiculo(dto.VeiculoId)
+                ?? throw new KeyNotFoundException($"Veículo com ID {dto.VeiculoId} não foi encontrado no veiculos-service.");
+
+            if (!veiculo.AtivoNoPatio)
+            {
+                throw new InvalidOperationException($"Não é possível registrar cobrança: o veículo placa '{veiculo.Placa}' não está ativo no pátio.");
+            }
+
+            var dataEntrada = dto.DataHoraEntrada ?? veiculo.DataHoraEntrada;
 
             if (dto.DataHoraSaida.HasValue && dto.DataHoraSaida.Value < dataEntrada)
                 throw new ArgumentException("A data/hora de saída não pode ser anterior à data/hora de entrada.");
@@ -120,6 +135,47 @@ namespace CobrancaService.Servicos
             _dataContext.SaveChanges();
 
             return MapearParaDTO(cobranca);
+        }
+
+        public async Task<VeiculoConsultaDTO?> ConsultarVeiculo(int veiculoId)
+        {
+            try
+            {
+                var baseUrl = _configuration["ServicesUrls:VeiculosService"] 
+                           ?? _configuration["ServicosUrls:VeiculosService"] 
+                           ?? "http://localhost:5002";
+
+                var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(5);
+
+                var response = await client.GetAsync($"{baseUrl.TrimEnd('/')}/api/veiculos/{veiculoId}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    response = await client.GetAsync($"{baseUrl.TrimEnd('/')}/veiculos/{veiculoId}");
+                }
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<VeiculoConsultaDTO>();
+                }
+
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return null;
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[AVISO] Erro HTTP ao consultar veiculos-service para veículo {veiculoId}: {ex.Message}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AVISO] Não foi possível consultar veiculos-service para o veículo {veiculoId}: {ex.Message}");
+                throw;
+            }
+
+            return null;
         }
 
         public CobrancaDTO Atualizar(int id, AtualizarCobrancaDTO dto)

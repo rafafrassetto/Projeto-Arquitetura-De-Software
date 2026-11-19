@@ -54,4 +54,18 @@ namespace CobrancaService.DTO
         public decimal ValorCalculado { get; set; }
         public string StatusPagamento { get; set; } = string.Empty;
     }
+
+    public class VeiculoConsultaDTO
+    {
+        public int Id { get; set; }
+        public string Placa { get; set; } = string.Empty;
+        public string Modelo { get; set; } = string.Empty;
+        public string Cor { get; set; } = string.Empty;
+        public string TipoVeiculo { get; set; } = string.Empty;
+        public string? NomeCondutor { get; set; }
+        public string? TelefoneCondutor { get; set; }
+        public DateTime DataHoraEntrada { get; set; }
+        public DateTime? DataHoraSaida { get; set; }
+        public bool AtivoNoPatio { get; set; }
+    }
 }

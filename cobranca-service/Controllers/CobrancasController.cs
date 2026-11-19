@@ -71,20 +71,28 @@ namespace CobrancaService.Controllers
         }
 
         [HttpPost]
-        public IActionResult Criar([FromBody] CriarCobrancaDTO dto)
+        public async Task<IActionResult> Criar([FromBody] CriarCobrancaDTO dto)
         {
             try
             {
-                var novaCobranca = _servCobrancas.Criar(dto);
+                var novaCobranca = await _servCobrancas.Criar(dto);
                 return CreatedAtAction(nameof(ObterPorId), new { id = novaCobranca.Id }, novaCobranca);
             }
             catch (ArgumentException ex)
             {
                 return BadRequest(new { erro = ex.Message });
             }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { erro = ex.Message });
+            }
             catch (InvalidOperationException ex)
             {
                 return Conflict(new { erro = ex.Message });
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(503, new { erro = $"Falha de comunicação com o veiculos-service: {ex.Message}" });
             }
             catch (Exception ex)
             {
